@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+.next/
+.env
+.env.example
+.venv/
+dist/
+build/
+backend/token.json
+backend/credentials.json
