@@ -10,3 +10,4 @@ dist/
 build/
 backend/token.json
 backend/credentials.json
+llm/Qwen/api.env
