@@ -1,3 +1,5 @@
+import importlib
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -13,8 +15,6 @@ if str(BACKEND_ROOT) not in sys.path:
 # Load .env early for local test environment
 load_dotenv(BACKEND_ROOT / ".env")
 
-from app.main import app
-
 try:
     import requests
 except ImportError:
@@ -25,6 +25,7 @@ EXTERNAL_TEST_FLAG = "RUN_EXTERNAL_TESTS"
 
 @pytest.fixture(scope="module")
 def client():
+    app = importlib.import_module("app.main").app
     with TestClient(app) as test_client:
         yield test_client
 
@@ -68,16 +69,18 @@ def test_google_token_file_exists():
 
 
 def test_python_packages_installed():
-    try:
-        import openai
-    except ModuleNotFoundError:
+    if importlib.util.find_spec("openai") is None:
         pytest.fail("openai package is not installed")
 
-    try:
-        import google.auth
-        import googleapiclient
-    except ModuleNotFoundError as exc:
-        pytest.fail(f"Google client package missing: {exc}")
+    missing_google_packages = [
+        package
+        for package in ("google.auth", "googleapiclient")
+        if importlib.util.find_spec(package) is None
+    ]
+    if missing_google_packages:
+        pytest.fail(
+            f"Google client package missing: {', '.join(missing_google_packages)}"
+        )
 
     assert requests is not None, "requests package is not installed"
 
