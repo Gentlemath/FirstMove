@@ -32,9 +32,16 @@ export interface TaskCard {
   why_it_matters: string;
   first_step: string;
   hint: string;
-  tools: string[];
+  tools: ToolShortcut[];
   section: 'now' | 'ready' | 'later';
   status: 'now' | 'ready' | 'later' | 'finished' | 'dismissed';
+}
+
+export interface ToolShortcut {
+  key: string;
+  label: string;
+  href: string;
+  kind: 'web' | 'app';
 }
 
 export interface WorkspaceGenerateRequest {

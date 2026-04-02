@@ -35,13 +35,20 @@ class WorkspaceGenerateRequest(BaseModel):
     raw_task_text: Union[str, None] = None
 
 
+class ToolShortcut(BaseModel):
+    key: str
+    label: str
+    href: str
+    kind: Literal["web", "app"]
+
+
 class TaskCard(BaseModel):
     task_id: str
     title: str
     why_it_matters: str
     first_step: str
     hint: str
-    tools: list[str] = Field(default_factory=list)
+    tools: list[ToolShortcut] = Field(default_factory=list)
     section: Literal["now", "ready", "later"]
     status: Literal["now", "ready", "later", "finished", "dismissed"] = "now"
 

@@ -122,12 +122,15 @@ export default function WorkspaceColumn({
                           <div className="mb-2 text-xs uppercase tracking-wide text-slate-500">Tools</div>
                           <div className="flex flex-wrap gap-2">
                             {selectedTaskWithStatus.tools.map((tool) => (
-                              <span
-                                key={tool}
-                                className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs text-slate-700"
+                              <a
+                                key={tool.key}
+                                href={tool.href}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900"
                               >
-                                {tool}
-                              </span>
+                                {tool.label}
+                              </a>
                             ))}
                           </div>
 
