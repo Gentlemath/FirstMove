@@ -42,7 +42,7 @@ jobs:
       # 6) Run Python linting (ruff) on backend code.
       - name: Run Python lint
         run: |
-          ruff check backend app
+          ruff check backend/app backend/tests
 
       # 7) Run static typing checks (mypy)
       - name: Run mypy type checks
