@@ -1,17 +1,32 @@
 import os
+import sys
 from pathlib import Path
 
 import pytest
-import socket
 from dotenv import load_dotenv
+from fastapi.testclient import TestClient
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
 
 # Load .env early for local test environment
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+load_dotenv(BACKEND_ROOT / ".env")
+
+from app.main import app
 
 try:
     import requests
 except ImportError:
     requests = None
+
+EXTERNAL_TEST_FLAG = "RUN_EXTERNAL_TESTS"
+
+
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def _require_env_var(name: str):
@@ -20,7 +35,24 @@ def _require_env_var(name: str):
     return value
 
 
+def _require_external_test_env(*names: str):
+    if os.environ.get(EXTERNAL_TEST_FLAG) != "1":
+        pytest.skip(f"Set {EXTERNAL_TEST_FLAG}=1 to run external environment smoke tests")
+
+    missing = [name for name in names if not os.environ.get(name, "").strip()]
+    if missing:
+        pytest.skip(f"Missing external test environment variables: {', '.join(missing)}")
+
+
 def test_required_env_vars_are_set():
+    _require_external_test_env(
+        "GOOGLE_CALENDAR_ID",
+        "GOOGLE_CALENDAR_TOKEN_PATH",
+        "GOOGLE_CALENDAR_TIMEZONE",
+        "LLM_ENDPOINT_URL",
+        "LLM_MODEL",
+        "LLM_TIMEOUT",
+    )
     _require_env_var("GOOGLE_CALENDAR_ID")
     _require_env_var("GOOGLE_CALENDAR_TOKEN_PATH")
     _require_env_var("GOOGLE_CALENDAR_TIMEZONE")
@@ -30,6 +62,7 @@ def test_required_env_vars_are_set():
 
 
 def test_google_token_file_exists():
+    _require_external_test_env("GOOGLE_CALENDAR_TOKEN_PATH")
     token_path = _require_env_var("GOOGLE_CALENDAR_TOKEN_PATH")
     assert os.path.exists(token_path), f"Google token path does not exist: {token_path}"
 
@@ -49,9 +82,8 @@ def test_python_packages_installed():
     assert requests is not None, "requests package is not installed"
 
 
-def test_backend_health_endpoint():
-    assert requests is not None, "requests package is not installed"
-    resp = requests.get("http://127.0.0.1:8000/health", timeout=5)
+def test_backend_health_endpoint(client: TestClient):
+    resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.json()
     assert data.get("status") == "ok"
@@ -59,6 +91,7 @@ def test_backend_health_endpoint():
 
 def test_vllm_models_endpoint():
     assert requests is not None, "requests package is not installed"
+    _require_external_test_env("LLM_ENDPOINT_URL")
     llm_endpoint = _require_env_var("LLM_ENDPOINT_URL")
     url = f"{llm_endpoint.rstrip('/')}/models"
     resp = requests.get(url, timeout=10)
@@ -71,6 +104,7 @@ def test_vllm_models_endpoint():
 def test_direct_vllm_chat_completion():
     from openai import OpenAI
 
+    _require_external_test_env("LLM_ENDPOINT_URL", "LLM_MODEL")
     llm_endpoint = _require_env_var("LLM_ENDPOINT_URL")
     llm_model = _require_env_var("LLM_MODEL")
 
@@ -90,19 +124,13 @@ def test_direct_vllm_chat_completion():
     assert response.choices[0].message.content
 
 
-def test_workspace_generation_endpoint():
-    assert requests is not None, "requests package is not installed"
-
+def test_workspace_generation_endpoint(client: TestClient):
     payload = {
         "raw_tasks": ["Finish spec", "Reply recruiter"],
         "raw_task_text": None,
     }
 
-    resp = requests.post(
-        "http://127.0.0.1:8000/workspace/generate",
-        json=payload,
-        timeout=10,
-    )
+    resp = client.post("/workspace/generate", json=payload)
 
     assert resp.status_code == 200
     data = resp.json()

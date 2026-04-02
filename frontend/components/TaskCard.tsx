@@ -1,4 +1,4 @@
-import { TaskCard } from "../lib/api";
+import type { TaskCard } from "../lib/api";
 
 const sectionLabelMap = {
   now: "Now",

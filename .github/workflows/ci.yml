@@ -14,12 +14,12 @@ jobs:
 
     steps:
       # 1) Checkout repo code.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # 2) Set up Python runtime.
       # call github's official setup-python action with version 3.11 specified.
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -53,10 +53,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -66,14 +66,14 @@ jobs:
           cd frontend
           npm ci
 
-      # 10) Run frontend tests (adjust for existing test scripts).
-      - name: Run frontend tests
+      # 10) Run frontend build as the current verification step.
+      - name: Build frontend
         run: |
           cd frontend
-          npm test -- --watchAll=false
+          npm run build
 
-      # 11) Optional front-end lint step; keep workflow green even if fail (adjust as needed).
-      - name: Lint frontend (optional)
+      # 11) Run lint only if the script exists in package.json.
+      - name: Lint frontend (if configured)
         run: |
           cd frontend
-          npm run lint || true
+          npm run | grep -q "^  lint" && npm run lint || echo "No lint script configured; skipping"

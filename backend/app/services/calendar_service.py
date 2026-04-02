@@ -2,20 +2,26 @@ from __future__ import annotations
 
 import os
 from datetime import date, datetime, time, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.schemas.workspace import CalendarDayResponse, FixedBlock
 
 GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+GoogleRequest: Any = None
+GoogleCredentials: Any = None
+google_build: Any = None
 
 try:
-    from google.auth.transport.requests import Request
-    from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
+    from google.auth.transport.requests import Request as _GoogleRequest
+    from google.oauth2.credentials import Credentials as _GoogleCredentials
+    from googleapiclient.discovery import build as _google_build  # type: ignore[import-untyped]
 except ImportError:
-    Request = None
-    Credentials = None
-    build = None
+    pass
+else:
+    GoogleRequest = _GoogleRequest
+    GoogleCredentials = _GoogleCredentials
+    google_build = _google_build
 
 
 def get_calendar_day(target_date: date | None = None) -> CalendarDayResponse:
@@ -78,9 +84,9 @@ def _google_calendar_is_configured() -> bool:
     ]
     return (
         all(required_values)
-        and Credentials is not None
-        and Request is not None
-        and build is not None
+        and GoogleCredentials is not None
+        and GoogleRequest is not None
+        and google_build is not None
     )
 
 
@@ -93,7 +99,7 @@ def _fetch_google_fixed_blocks(target_date: date) -> list[FixedBlock] | None:
         return None
 
     credentials = _load_google_credentials(token_path)
-    service = build("calendar", "v3", credentials=credentials)
+    service = google_build("calendar", "v3", credentials=credentials)
 
     start_of_day = datetime.combine(target_date, time.min, tzinfo=ZoneInfo(timezone_name))
     end_of_day = datetime.combine(target_date, time.max, tzinfo=ZoneInfo(timezone_name))
@@ -140,7 +146,7 @@ def _fetch_google_upcoming_blocks(days_ahead: int = 7) -> list[FixedBlock] | Non
         return None
 
     credentials = _load_google_credentials(token_path)
-    service = build("calendar", "v3", credentials=credentials)
+    service = google_build("calendar", "v3", credentials=credentials)
 
     # Start from now
     now = datetime.now(tz=ZoneInfo(timezone_name))
@@ -168,18 +174,18 @@ def _fetch_google_upcoming_blocks(days_ahead: int = 7) -> list[FixedBlock] | Non
 
 
 
-def _load_google_credentials(token_path: str) -> Credentials:
-    if Credentials is None or Request is None:
+def _load_google_credentials(token_path: str) -> Any:
+    if GoogleCredentials is None or GoogleRequest is None:
         raise RuntimeError("Google Calendar dependencies are not installed.")
 
     if not os.path.exists(token_path):
         raise FileNotFoundError(f"Google token file not found: {token_path}")
 
-    credentials = Credentials.from_authorized_user_file(token_path, GOOGLE_CALENDAR_SCOPES)
+    credentials = GoogleCredentials.from_authorized_user_file(token_path, GOOGLE_CALENDAR_SCOPES)
 
     if not credentials.valid:
         if credentials.expired and credentials.refresh_token:
-            credentials.refresh(Request())
+            credentials.refresh(GoogleRequest())
             with open(token_path, "w", encoding="utf-8") as token_file:
                 token_file.write(credentials.to_json())
         else:

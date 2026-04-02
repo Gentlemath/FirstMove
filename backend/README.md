@@ -22,6 +22,11 @@ Current behavior:
 - otherwise it falls back to demo fixed blocks so the frontend can still run
 - `POST /workspace/generate` currently uses rule-based task generation, not a real LLM yet
 
+Testing:
+- `pytest -q` runs CI-safe backend tests
+- `RUN_EXTERNAL_TESTS=1 pytest -q` also runs local smoke tests that require Google Calendar and vLLM configuration
+- Frontend CI currently validates with `npm run build`; no frontend test script is configured yet
+
 Google Calendar env vars:
 - `GOOGLE_CALENDAR_ID`
 - `GOOGLE_CALENDAR_TOKEN_PATH`
