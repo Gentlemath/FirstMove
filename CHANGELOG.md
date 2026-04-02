@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+- optimizate the LLM so that generated tasks are more articulated
+
 ## [0.1.0] - 2026-04-01
 
 ### Added
