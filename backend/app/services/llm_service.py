@@ -5,6 +5,7 @@ import logging
 from datetime import date
 from os import getenv
 from pathlib import Path
+from typing import Literal, cast
 
 from openai import OpenAI
 
@@ -13,6 +14,8 @@ from app.schemas.workspace import FixedBlock, TaskCard, Workspace
 logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "generate_workspace.txt"
+SectionName = Literal["now", "ready", "later"]
+WorkspaceSource = Literal["rules", "llm"]
 
 # LLM Configuration
 LLM_ENDPOINT_URL = getenv("LLM_ENDPOINT_URL", "http://localhost:8001/v1")
@@ -37,7 +40,7 @@ def generate_workspace(
         task_cards = _generate_task_cards_with_llm(
             normalized_tasks, fixed_blocks, resolved_date
         )
-        source = "llm"
+        source: WorkspaceSource = "llm"
     except Exception as e:
         logger.warning(f"LLM generation failed, falling back to rules: {e}")
         task_cards = _generate_task_cards_with_rules(normalized_tasks, fixed_blocks)
@@ -104,7 +107,11 @@ Return a JSON array with exactly {len(normalized_tasks)} objects, each with:
         timeout=LLM_TIMEOUT,
     )
 
-    response_text = response.choices[0].message.content.strip()
+    response_text = response.choices[0].message.content
+    if response_text is None:
+        raise ValueError("LLM response content is empty")
+
+    response_text = response_text.strip()
     logger.debug("LLM raw response text: %s", response_text)
     
     # Extract JSON from response (handle markdown code blocks)
@@ -130,9 +137,7 @@ Return a JSON array with exactly {len(normalized_tasks)} objects, each with:
     task_cards = []
     for index, item in enumerate(task_data, start=1):
         # Ensure section is valid
-        section = item.get("section", _default_section(index))
-        if section not in ["now", "ready", "later"]:
-            section = _default_section(index)
+        section = _coerce_section(item.get("section"), index)
             
         task_cards.append(
             TaskCard(
@@ -184,7 +189,7 @@ def _format_calendar_context(fixed_blocks: list[FixedBlock]) -> str:
     return "\n".join(context_lines)
 
 
-def _default_section(index: int) -> str:
+def _default_section(index: int) -> SectionName:
     """Determine default section by priority order."""
     if index == 1:
         return "now"
@@ -205,13 +210,19 @@ def _normalize_tasks(raw_tasks: list[str], raw_task_text: str | None) -> list[st
     return cleaned_tasks
 
 
-def _assign_section(index: int) -> str:
+def _assign_section(index: int) -> SectionName:
     """Determine the section assignment by task index."""
     if index == 1:
         return "now"
     if index <= 3:
         return "ready"
     return "later"
+
+
+def _coerce_section(value: object, index: int) -> SectionName:
+    if value in {"now", "ready", "later"}:
+        return cast(SectionName, value)
+    return _default_section(index)
 
 
 def _infer_why_it_matters(task_title: str) -> str:
